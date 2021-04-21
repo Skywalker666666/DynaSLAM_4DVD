@@ -8,8 +8,8 @@ ENDIF()
 
 MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall  -O3 -march=native ")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall   -O3 -march=native")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall  -O3")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall   -O3")
 
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall  -O0 -march=native ")
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall   -O0 -march=native")
@@ -36,11 +36,15 @@ message("PROJECT_SOURCE_DIR: " ${OpenCV_DIR})
 find_package(OpenCV 2.4.11 QUIET)
 if(NOT OpenCV_FOUND)
     message("OpenCV > 2.4.11 not found.")
-    find_package(OpenCV 3.0 QUIET)
+    find_package(OpenCV 3.4.1 QUIET)
+    if(OpenCV_FOUND)
+        message("OpenCV 3.4.1 is found.")
+    endif()
     if(NOT OpenCV_FOUND)
         message(FATAL_ERROR "OpenCV > 3.0 not found.")
     endif()
 endif()
+message("PROJECT_SOURCE_DIR: " ${OpenCV_DIR})
 
 #find_package(OpenCV 3.0 QUIET)
 #if(NOT OpenCV_FOUND)
@@ -55,26 +59,54 @@ find_package(Qt5Concurrent REQUIRED)
 find_package(Qt5OpenGL REQUIRED)
 find_package(Qt5Test REQUIRED)
 
-find_package(PythonLibs REQUIRED)
-if (NOT PythonLibs_FOUND)
-    message(FATAL_ERROR "PYTHON LIBS not found.")
-else()
-    message("PYTHON LIBS were found!")
-    message("PYTHON LIBS DIRECTORY: " ${PYTHON_LIBRARY})
+#find_package(PythonLibs REQUIRED)
+
+##find_package(PythonLibs REQUIRED PATHS "/usr/lib/x86_64-linux-gnu/libpython2.7.so.1.0")
+##if (NOT PythonLibs_FOUND)
+##    message(FATAL_ERROR "PYTHON LIBS not found.")
+##else()
+##    message("PYTHON LIBS were found!")
+##    message("PYTHON LIBS DIRECTORY: " ${PYTHON_LIBRARY})
+##endif()
+
+find_package(PythonLibs 2.7 REQUIRED)
+
+###find_package(Boost REQUIRED COMPONENTS thread)
+###if(Boost_FOUND)
+###    message("Boost was found!")
+###    message("Boost Headers DIRECTORY: " ${Boost_INCLUDE_DIRS})
+###    message("Boost LIBS DIRECTORY: " ${Boost_LIBRARY_DIRS})
+###    message("Found Libraries: " ${Boost_LIBRARIES})
+###endif()
+
+set(Python_ADDITIONAL_VERSIONS 2.7)
+find_package(Boost COMPONENTS python27 QUIET)
+if(NOT Boost_FOUND)
+   message(STATUS "Trying alternative Boost.Python component name, python-py<version>...")
+         find_package(Boost COMPONENTS python-py27 system REQUIRED)
+         if(Boost_FOUND)
+             message("Boost was found!")
+             message("Boost Headers DIRECTORY: " ${Boost_INCLUDE_DIRS})
+             message("Boost LIBS DIRECTORY: " ${Boost_LIBRARY_DIRS})
+             message("Found Libraries: " ${Boost_LIBRARIES})
+         endif()
 endif()
 
-find_package(Boost REQUIRED COMPONENTS thread)
-if(Boost_FOUND)
-    message("Boost was found!")
-    message("Boost Headers DIRECTORY: " ${Boost_INCLUDE_DIRS})
-    message("Boost LIBS DIRECTORY: " ${Boost_LIBRARY_DIRS})
-    message("Found Libraries: " ${Boost_LIBRARIES})
-endif()
+
 
 find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Pangolin REQUIRED)
 
 set(PYTHON_INCLUDE_DIRS ${PYTHON_INCLUDE_DIRS} /usr/local/lib/python2.7/dist-packages/numpy/core/include/numpy)
+
+set(PYTHON_LIBRARY ${PYTHON_LIBRARY} "/usr/lib/x86_64-linux-gnu/libpython2.7.so.1.0")
+
+
+set(numpy_include /usr/local/lib/python2.7/dist-packages/numpy/core/include)
+set(numpy_lib /usr/local/lib/python2.7/dist-packages/numpy/core/lib/npymath.lib)
+
+
+
 
 include_directories(
 ${PROJECT_SOURCE_DIR}
@@ -147,7 +179,8 @@ add_executable(mono_kitti
 Examples/Monocular/mono_kitti.cc)
 target_link_libraries(mono_kitti ${PROJECT_NAME})
 
-add_executable(mono_carla
-Examples/Monocular/mono_carla.cc)
-target_link_libraries(mono_carla ${PROJECT_NAME})
+# skywalker, commented it because of carla is deleted in new version
+#add_executable(mono_carla
+#Examples/Monocular/mono_carla.cc)
+#target_link_libraries(mono_carla ${PROJECT_NAME})
 

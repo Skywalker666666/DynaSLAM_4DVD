@@ -62,8 +62,12 @@ class Mask:
         print 'Initialated Mask RCNN network...'
 
     def GetDynSeg(self,image,image2=None):
+        print "I am in GetDynSeg"
 	h = image.shape[0]
 	w = image.shape[1]
+        print "shape"
+        print "h: " + str(h)
+        print "w: " + str(w)
 	if len(image.shape) == 2:
 		im = np.zeros((h,w,3))
 		im[:,:,0]=image
@@ -137,7 +141,7 @@ class Mask:
 			image_m = r['masks'][:,:,i]
 			mask[image_m == 1] = 1.		
 		i+=1
-	#print('GetSeg mask shape:',mask.shape)
+	print('GetSeg mask shape:',mask.shape)
 
 	return mask
 

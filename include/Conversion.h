@@ -14,7 +14,11 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
-#include "ndarrayobject.h"
+
+#include "numpy/arrayobject.h"
+#include "numpy/ndarrayobject.h"
+
+
 // #include "__multiarray_api.h"
 
 #define NUMPY_IMPORT_ARRAY_RETVAL

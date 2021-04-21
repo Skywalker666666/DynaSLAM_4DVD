@@ -32,6 +32,16 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    if(argc == 7){
+        cout << "argv[1]: " << argv[1] << endl;
+        cout << "argv[2]: " << argv[2] << endl;
+        cout << "argv[3]: " << argv[3] << endl;
+        cout << "argv[4]: " << argv[4] << endl;
+        cout << "argv[5]: " << argv[5] << endl;
+        cout << "argv[6]: " << argv[6] << endl;
+    }
+
+
     // Retrieve paths to images
     vector<string> vstrImageFilenamesRGB;
     vector<string> vstrImageFilenamesD;
@@ -102,6 +112,14 @@ int main(int argc, char **argv)
         imRGB = cv::imread(string(argv[3])+"/"+vstrImageFilenamesRGB[ni],CV_LOAD_IMAGE_UNCHANGED);
         imD = cv::imread(string(argv[3])+"/"+vstrImageFilenamesD[ni],CV_LOAD_IMAGE_UNCHANGED);
 
+        cout << "size of imRGB: " << imRGB.size() << endl;
+
+
+        //cv::imshow("Display window", imRGB);
+        //int k = cv::waitKey(0);
+ 
+
+
         double tframe = vTimestamps[ni];
 
         if(imRGB.empty())
@@ -122,6 +140,10 @@ int main(int argc, char **argv)
         if (argc == 6 || argc == 7)
         {
             cv::Mat maskRCNN;
+            
+            cout << "vstrImageFilenamesRGB: " << vstrImageFilenamesRGB[ni] << endl;
+            cout << "vstrImageFilenamesRGB0,4: " << vstrImageFilenamesRGB[ni].replace(0,4,"") << endl;
+
             maskRCNN = MaskNet->GetSegmentation(imRGB,string(argv[5]),vstrImageFilenamesRGB[ni].replace(0,4,""));
             cv::Mat maskRCNNdil = maskRCNN.clone();
             cv::dilate(maskRCNN,maskRCNNdil, kernel);

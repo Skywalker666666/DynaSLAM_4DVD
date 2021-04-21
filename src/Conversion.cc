@@ -15,6 +15,8 @@ namespace DynaSLAM
 
 static void init()
 {
+    PyRun_SimpleString("import sys");
+    PyRun_SimpleString("sys.path.append(\"/usr/bin/python2.7\")");
     import_array();
 }
 
@@ -74,9 +76,9 @@ static PyObject* failmsgp(const char *fmt, ...)
 class NumpyAllocator : public MatAllocator
 {
 public:
+#if ( CV_MAJOR_VERSION < 3)
     NumpyAllocator() {}
     ~NumpyAllocator() {}
-#if ( CV_MAJOR_VERSION < 3)
     void allocate(int dims, const int* sizes, int type, int*& refcount,
                   uchar*& datastart, uchar*& data, size_t* step)
     {
@@ -129,76 +131,71 @@ public:
         Py_DECREF(o);
     }
 #else
+    NumpyAllocator() { stdAllocator = Mat::getStdAllocator();}
+    ~NumpyAllocator() {}
 
-    bool allocate(UMatData* u, int accessflags, UMatUsageFlags usageFlags) const {
 
-        if(!u) return false;
-        return true;
-    }
-    void deallocate(UMatData* data) const {
-        //PyEnsureGIL gil;
-        if( !data->refcount )
-            return;
-        PyObject* o = pyObjectFromRefcount(&data->refcount);
-        Py_INCREF(o);
-        Py_DECREF(o);
-    }
-    UMatData* allocate(int dims, const int* sizes, int type,
-                       void* data, size_t* step, int flags, UMatUsageFlags usageFlags) const {
-        int depth = CV_MAT_DEPTH(type);
-        int cn = CV_MAT_CN(type);
-
-        const int f = (int)(sizeof(size_t)/8);
-        int typenum = depth == CV_8U ? NPY_UBYTE : depth == CV_8S ? NPY_BYTE :
-                                                                    depth == CV_16U ? NPY_USHORT : depth == CV_16S ? NPY_SHORT :
-                                                                                                                     depth == CV_32S ? NPY_INT : depth == CV_32F ? NPY_FLOAT :
-                                                                                                                                                                   depth == CV_64F ? NPY_DOUBLE : f*NPY_ULONGLONG + (f^1)*NPY_UINT;
-        int i;
-
-        npy_intp _sizes[CV_MAX_DIM+1];
-        for( i = 0; i < dims; i++ )
-        {
-            _sizes[i] = sizes[i];
-        }
-
-        if( cn > 1 )
-        {
-            _sizes[dims++] = cn;
-        }
-        PyObject* o = PyArray_SimpleNew(dims, _sizes, typenum);
-        if(!o)
-        {
-
-            CV_Error_(CV_StsError, ("The numpy array of typenum=%d, ndims=%d can not be created", typenum, dims));
-        }
+    UMatData* allocate(PyObject* o, int dims, const int* sizes, int type,
+                       size_t* step) const {
         UMatData* u = new UMatData(this);
-        u->refcount = *refcountFromPyObject(o);
-
-        npy_intp* _strides = PyArray_STRIDES(o);
-        for( i = 0; i < dims - (cn > 1); i++ )
-            step[i] = (size_t)_strides[i];
-
-        u->data=u->origdata = (uchar*)PyArray_DATA(o);
-        u->size=1;
-        if( data ){
-            u->flags |= UMatData::USER_ALLOCATED;
-        }
+        u->data = u->origdata = (uchar*) PyArray_DATA((PyArrayObject*) o);
+        npy_intp* _strides = PyArray_STRIDES((PyArrayObject*) o);
+        for (int i = 0; i < dims - 1; i++)
+        	step[i] = (size_t) _strides[i];
+        step[dims - 1] = CV_ELEM_SIZE(type);
+        u->size = sizes[0] * step[0];
+        u->userdata = o;
         return u;
     }
-    void map(UMatData* data, int accessflags) const {return;}
-    void unmap(UMatData* data) const {;}
-    void download(UMatData* data, void* dst, int dims, const size_t sz[],
-                  const size_t srcofs[], const size_t srcstep[],
-                  const size_t dststep[]) const {;}
-    void upload(UMatData* data, const void* src, int dims, const size_t sz[],
-                const size_t dstofs[], const size_t dststep[],
-                const size_t srcstep[]) const {;}
-    void copy(UMatData* srcdata, UMatData* dstdata, int dims, const size_t sz[],
-              const size_t srcofs[], const size_t srcstep[],
-              const size_t dstofs[], const size_t dststep[], bool sync) const {;}
 
-    // default implementation returns DummyBufferPoolController
-    BufferPoolController* getBufferPoolController(const char* id = NULL) const {return 0;}
+
+
+    UMatData* allocate(int dims0, const int* sizes, int type, void* data, size_t* step, int flags, UMatUsageFlags usageFlags) const
+    {
+		USAGE_DEFAULT;
+        if( data != 0 )
+        {
+            CV_Error(Error::StsAssert, "The data should normally be NULL!");
+            // probably this is safe to do in such extreme case
+            return stdAllocator->allocate(dims0, sizes, type, data, step, flags, usageFlags);
+        }
+        PyEnsureGIL gil;
+
+        int depth = CV_MAT_DEPTH(type);
+        int cn = CV_MAT_CN(type);
+        const int f = (int)(sizeof(size_t)/8);
+        int typenum = depth == CV_8U ? NPY_UBYTE : depth == CV_8S ? NPY_BYTE :
+        depth == CV_16U ? NPY_USHORT : depth == CV_16S ? NPY_SHORT :
+        depth == CV_32S ? NPY_INT : depth == CV_32F ? NPY_FLOAT :
+        depth == CV_64F ? NPY_DOUBLE : f*NPY_ULONGLONG + (f^1)*NPY_UINT;
+        int i, dims = dims0;
+        cv::AutoBuffer<npy_intp> _sizes(dims + 1);
+        for( i = 0; i < dims; i++ )
+            _sizes[i] = sizes[i];
+        if( cn > 1 )
+            _sizes[dims++] = cn;
+        PyObject* o = PyArray_SimpleNew(dims, _sizes, typenum);
+        if(!o)
+            CV_Error_(Error::StsError, ("The numpy array of typenum=%d, ndims=%d can not be created", typenum, dims));
+        return allocate(o, dims0, sizes, type, step);
+    }
+
+
+    bool allocate(UMatData* u, int accessFlags,
+			UMatUsageFlags usageFlags) const {
+		return stdAllocator->allocate(u, accessFlags, usageFlags);
+	}
+    
+    void deallocate(UMatData* u) const {
+		if (u) {
+			PyEnsureGIL gil;
+			PyObject* o = (PyObject*) u->userdata;
+			Py_XDECREF(o);
+			delete u;
+		}
+	}
+
+   const MatAllocator* stdAllocator;
 #endif
 };
 
@@ -208,12 +205,15 @@ NDArrayConverter::NDArrayConverter() { init(); }
 
 void NDArrayConverter::init()
 {
+    PyRun_SimpleString("import sys");
+    PyRun_SimpleString("sys.path.append(\"/usr/bin/python2.7\")");
     import_array();
 }
 
 
 cv::Mat NDArrayConverter::toMat(const PyObject *o)
 {
+    std::cout << "CMAJOR: " << CV_MAJOR_VERSION << std::endl;
     cv::Mat m;
 
     if(!o || o == Py_None)
@@ -222,10 +222,15 @@ cv::Mat NDArrayConverter::toMat(const PyObject *o)
             m.allocator = &g_numpyAllocator;
     }
 
+    std::cout << "toMat step 1 " << std::endl;
+
+
     if( !PyArray_Check(o) )
     {
         failmsg("toMat: Object is not a numpy array");
     }
+
+    std::cout << "toMat step 2 " << std::endl;
 
     int typenum = PyArray_TYPE(o);
     int type = typenum == NPY_UBYTE ? CV_8U : typenum == NPY_BYTE ? CV_8S :
@@ -234,10 +239,16 @@ cv::Mat NDArrayConverter::toMat(const PyObject *o)
                                                                                                                                                                         typenum == NPY_FLOAT ? CV_32F :
                                                                                                                                                                                                typenum == NPY_DOUBLE ? CV_64F : -1;
 
+    std::cout << "toMat step 3 " << std::endl;
+
+
     if( type < 0 )
     {
         failmsg("toMat: Data type = %d is not supported", typenum);
     }
+
+    std::cout << "toMat step 4 " << std::endl;
+
 
     int ndims = PyArray_NDIM(o);
 
@@ -245,6 +256,8 @@ cv::Mat NDArrayConverter::toMat(const PyObject *o)
     {
         failmsg("toMat: Dimensionality (=%d) is too high", ndims);
     }
+
+    std::cout << "toMat step 5" << std::endl;
 
     int size[CV_MAX_DIM+1];
     size_t step[CV_MAX_DIM+1], elemsize = CV_ELEM_SIZE1(type);
@@ -277,6 +290,8 @@ cv::Mat NDArrayConverter::toMat(const PyObject *o)
         type |= CV_MAKETYPE(0, size[2]);
     }
 
+    std::cout << "toMat step 6" << std::endl;
+
     if( ndims > 2)
     {
         failmsg("toMat: Object has more than 2 dimensions");
@@ -288,11 +303,14 @@ cv::Mat NDArrayConverter::toMat(const PyObject *o)
     {
 #if ( CV_MAJOR_VERSION < 3)
         m.refcount = refcountFromPyObject(o);
+        m.addref(); // protect the original numpy array from deallocation
+                    // (since Mat destructor will decrement the reference counter)
 #else
-        m.u->refcount = *refcountFromPyObject(o);
-#endif
+        //m.u->refcount = *refcountFromPyObject(o);
         m.addref(); // protect the original numpy array from deallocation
         // (since Mat destructor will decrement the reference counter)
+        Py_INCREF(o);
+#endif
     };
     m.allocator = &g_numpyAllocator;
 
@@ -308,8 +326,17 @@ cv::Mat NDArrayConverter::toMat(const PyObject *o)
 
 PyObject* NDArrayConverter::toNDArray(const cv::Mat& m)
 {
+    std::cout << "CMAJOR toNDArray: " << CV_MAJOR_VERSION << std::endl;
+
+
     if( !m.data )
+    {
+        std::cout << "toNDArray m.data is wrong " << std::endl;
         Py_RETURN_NONE;
+    }
+
+    std::cout << "toNDArray return a good thing: " << std::endl;
+
     Mat temp, *p = (Mat*)&m;
 #if ( CV_MAJOR_VERSION < 3)
     if(!p->refcount || p->allocator != &g_numpyAllocator)
@@ -321,16 +348,24 @@ PyObject* NDArrayConverter::toNDArray(const cv::Mat& m)
     p->addref();
     return pyObjectFromRefcount(p->refcount);
 #else
+    std::cout << "p->u->refcount"  << std::endl;
     if(!p->u->refcount || p->allocator != &g_numpyAllocator)
     {
         temp.allocator = &g_numpyAllocator;
         m.copyTo(temp);
         p = &temp;
     }
-    p->addref();
-    return pyObjectFromRefcount(&p->u->refcount);
-#endif
 
+    PyObject* o = (PyObject*)p->u->userdata;
+    std::cout << "p->u->refcount 1"  << std::endl;
+
+    Py_INCREF(o);
+
+    std::cout << "p->u->refcount 2"  << std::endl;
+    //p->addref();
+    //return pyObjectFromRefcount(&p->u->refcount);
+#endif
+    return o;
 }
 
 }
