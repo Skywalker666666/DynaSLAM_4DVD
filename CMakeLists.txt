@@ -36,11 +36,16 @@ message("PROJECT_SOURCE_DIR: " ${OpenCV_DIR})
 find_package(OpenCV 2.4.11 QUIET)
 if(NOT OpenCV_FOUND)
     message("OpenCV > 2.4.11 not found.")
-    find_package(OpenCV 3.0 QUIET)
+    find_package(OpenCV 3.4.1 QUIET)
+    if(OpenCV_FOUND)
+        message("OpenCV 3.4.1 is found.")
+    endif()
     if(NOT OpenCV_FOUND)
         message(FATAL_ERROR "OpenCV > 3.0 not found.")
     endif()
 endif()
+message("PROJECT_SOURCE_DIR: " ${OpenCV_DIR})
+
 
 #find_package(OpenCV 3.0 QUIET)
 #if(NOT OpenCV_FOUND)
@@ -55,7 +60,11 @@ find_package(Qt5Concurrent REQUIRED)
 find_package(Qt5OpenGL REQUIRED)
 find_package(Qt5Test REQUIRED)
 
-find_package(PythonLibs REQUIRED)
+#find_package(PythonLibs REQUIRED)
+find_package(PythonLibs 2.7 REQUIRED)
+
+
+
 if (NOT PythonLibs_FOUND)
     message(FATAL_ERROR "PYTHON LIBS not found.")
 else()
@@ -63,7 +72,7 @@ else()
     message("PYTHON LIBS DIRECTORY: " ${PYTHON_LIBRARY})
 endif()
 
-find_package(Boost REQUIRED COMPONENTS thread)
+find_package(Boost REQUIRED COMPONENTS python-py27 system thread)
 if(Boost_FOUND)
     message("Boost was found!")
     message("Boost Headers DIRECTORY: " ${Boost_INCLUDE_DIRS})
@@ -75,6 +84,10 @@ find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Pangolin REQUIRED)
 
 set(PYTHON_INCLUDE_DIRS ${PYTHON_INCLUDE_DIRS} /usr/local/lib/python2.7/dist-packages/numpy/core/include/numpy)
+set(numpy_include /usr/local/lib/python2.7/dist-packages/numpy/core/include)
+set(numpy_lib /usr/local/lib/python2.7/dist-packages/numpy/core/lib/npymath.lib)
+
+
 
 include_directories(
 ${PROJECT_SOURCE_DIR}
@@ -147,7 +160,7 @@ add_executable(mono_kitti
 Examples/Monocular/mono_kitti.cc)
 target_link_libraries(mono_kitti ${PROJECT_NAME})
 
-add_executable(mono_carla
-Examples/Monocular/mono_carla.cc)
-target_link_libraries(mono_carla ${PROJECT_NAME})
+#add_executable(mono_carla
+#Examples/Monocular/mono_carla.cc)
+#target_link_libraries(mono_carla ${PROJECT_NAME})
 

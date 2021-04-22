@@ -1,4 +1,4 @@
-# DynaSLAM
+# DynaSLAM_4DVD
 
 This project is inherited from https://github.com/BertaBescos/DynaSLAM,
 and modified for deep video inpainting.
